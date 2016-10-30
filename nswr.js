@@ -7,7 +7,6 @@ var FileReadStream = require('nodeshout').FileReadStream,
 	ShoutStream = require('nodeshout').ShoutStream;
 var fs = require('fs');
 var lame = require('lame');
-var mp3 = require('./mp3converter.js');
 var EventEmitter = require('events').EventEmitter;
 
 /*
@@ -57,7 +56,7 @@ player.on('play_queue', function() {
 		file.close();
 		//console.log('A');
 	}
-	file = new fs.createReadStream("musique/".queue[0][1]);
+	file = new fs.createReadStream("musique/"+queue[0][1]);
 	//console.log('B');
 	decoder = new lame.Decoder();
 	decoder.on('format', function(format) {
@@ -74,6 +73,8 @@ player.on('play_queue', function() {
 			mode: lame.STEREO  // STEREO (default), JOINTSTEREO, DUALCHANNEL or MONO
 		});
 		//console.log('F');
+		metadata.add('song', queue[0][0]);
+		shout.setMetadata(metadata);
 		var s = decoder.pipe(encoder).pipe(new ShoutStream(shout));
 		//console.log('G');
 		s.on('finish', function() {
@@ -86,3 +87,4 @@ player.on('play_queue', function() {
 });
 
 player.emit('play_queue');
+
