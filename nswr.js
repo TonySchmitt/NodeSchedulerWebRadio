@@ -37,10 +37,58 @@ var metadata = nodeshout.createMetadata();
 var queue = new Array();
 queue.push(["Bande Annonce Matte Box", "BA_Matte_Box.mp3"]);
 queue.push(["Jingle Onde Critique", "OC_jingle.mp3"]);
-queue.push(["Pudding A l'Arsenic - MAGOYOND", "PuddingRockCover.mp3"]);
-queue.push(["A Good Man - Doctor Who", "02 A Good Man.mp3"]);
-queue.push(["9th Art #15", "9th_Art_15 - 2015-12-20.mp3"]);
+//queue.push(["Pudding A l'Arsenic - MAGOYOND", "PuddingRockCover.mp3"]);
+//queue.push(["A Good Man - Doctor Who", "02 A Good Man.mp3"]);
+//queue.push(["9th Art #15", "9th_Art_15 - 2015-12-20.mp3"]);
 
+
+/*
+ * Playlist
+ * Gestion des playlists en fonctions de tranche horaires
+ */
+
+var Playlist = {
+	
+	initPlaylist: function (name, beginTime, endTime) {
+		this.name = name;
+		this.beginTime = beginTime; // format : HH:MM:SS
+		this.endTime = endTime; //format : HH:MM:SS
+		this.playlist = new Array();
+	},
+
+	addsong: function (name, url) {
+		this.playlist.push([name, url]);
+	},
+
+	onesong: function() {
+		return this.playlist[0];
+	},
+
+	randsong: function() {
+		var i = Math.floor(Math.random() * this.playlist.length);
+		return this.playlist[i];
+	}
+
+};
+
+var playlist1 = Object.create(Playlist);
+playlist1.initPlaylist("Playlist Test", "12:00:00", "23:59:59");
+playlist1.addsong("A Good Man - Doctor Who", "02 A Good Man.mp3");
+
+/*
+ *
+ */
+var Jingle = Object.create(Playlist);
+Jingle.initPlaylist("Jingle", "00:00:00", "23:59:59");
+for (var i = 1; i < 18; i++) {
+	Jingle.addsong("Jingle", "Jingle/Jingle ("+i+").mp3");
+}
+
+
+
+/*
+ * Gestion du player automatique
+ */
 
 var player = new EventEmitter();
 var fs = require('fs');
@@ -48,6 +96,25 @@ var file = null;
 var encoder;
 var decoder = new lame.Decoder();
 
+player.on('player_split', function () {
+	queue.splice(0,1);
+	if(queue.length <= 3) {
+		player.emit('add_queue');
+	}
+});
+
+player.on('add_queue', function() {
+		var jingle = Jingle.randsong();
+		queue.push([jingle[0], jingle[1]]);
+		var song = playlist1.onesong();
+		queue.push([song[0], song[1]]);
+		console.log("add a song to the queue");
+});
+
+
+/*
+ * Player
+ */
 
 player.on('play_queue', function() {
 	if(file != null) {
@@ -78,7 +145,7 @@ player.on('play_queue', function() {
 		var s = decoder.pipe(encoder).pipe(new ShoutStream(shout));
 		//console.log('G');
 		s.on('finish', function() {
-			queue.splice(0,1);
+			player.emit('player_split');
 			player.emit('play_queue');
 		});
 	});
