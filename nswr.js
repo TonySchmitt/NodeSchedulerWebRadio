@@ -31,12 +31,35 @@ shout.open();
 var metadata = nodeshout.createMetadata();
 
 /*
+ * Test heure
+ */
+
+
+
+function compareStringHours(hours1, hours2) {
+	var h1 = parseInt(hours1.substr(0,2));
+	var h2 = parseInt(hours2.substr(0,2));
+	var m1 = parseInt(hours1.substr(3,2));
+	var m2 = parseInt(hours2.substr(3,2));
+	var s1 = parseInt(hours1.substr(6,2));
+	var s2 = parseInt(hours2.substr(6,2));
+
+	if(h1 > h2 || (h1 == h2 && m1 > m2) || (h1 == h2 && m1 == m2 && s1 > s2)) {
+		return 1;
+	} else if (h1 == h2 && m1 == m2 && s1 == s2) {
+		return 0;
+	} else {
+		return -1;
+	}
+}
+
+/*
  * Initialisation d'une queue de lecture
  */
 
 var queue = new Array();
 queue.push(["Bande Annonce Matte Box", "BA_Matte_Box.mp3"]);
-queue.push(["Jingle Onde Critique", "OC_jingle.mp3"]);
+//queue.push(["Jingle Onde Critique", "OC_jingle.mp3"]);
 //queue.push(["Pudding A l'Arsenic - MAGOYOND", "PuddingRockCover.mp3"]);
 //queue.push(["A Good Man - Doctor Who", "02 A Good Man.mp3"]);
 //queue.push(["9th Art #15", "9th_Art_15 - 2015-12-20.mp3"]);
@@ -49,15 +72,13 @@ queue.push(["Jingle Onde Critique", "OC_jingle.mp3"]);
 
 var Playlist = {
 	
-	initPlaylist: function (name, beginTime, endTime) {
+	initPlaylist: function (name) {
 		this.name = name;
-		this.beginTime = beginTime; // format : HH:MM:SS
-		this.endTime = endTime; //format : HH:MM:SS
 		this.playlist = new Array();
 	},
 
-	addsong: function (name, url) {
-		this.playlist.push([name, url]);
+	addsong: function (name, url, duration) {
+		this.playlist.push([name, url, duration]);
 	},
 
 	onesong: function() {
@@ -71,15 +92,51 @@ var Playlist = {
 
 };
 
+var PlaylistTimeSlot = {
+
+	initPlaylistTimeSlot: function() {
+		this.listPlaylist = new Array();
+	},
+
+	addPlaylist: function(playlist, beginTime, endTime) {
+		this.listPlaylist.push([playlist, beginTime, endTime]); //format : HH:MM:SS
+	},
+
+	selectRandomPlaylistInTime: function(time) {
+		var playlistNow = new Array();
+		this.listPlaylist.forEach(function (element) {
+			var begin = compareStringHours(time, element[1]);
+			var end = compareStringHours(time, element[2]);
+			if((begin == 1 || begin == 0) && end == -1) {
+				playlistNow.push(element);
+			}
+		});
+		if(playlistNow.length == 0) {
+			return false;
+		}
+		var i = Math.floor(Math.random() * playlistNow.length);
+		return playlistNow[i][0];
+	}
+}
+
 var playlist1 = Object.create(Playlist);
-playlist1.initPlaylist("Playlist Test", "12:00:00", "23:59:59");
-playlist1.addsong("A Good Man - Doctor Who", "02 A Good Man.mp3");
+playlist1.initPlaylist("Playlist Test");
+playlist1.addsong("A Good Man - Doctor Who", "02 A Good Man.mp3", 453);
+
+var playlist2 = Object.create(Playlist);
+playlist2.initPlaylist("Playlist Test");
+playlist2.addsong("Pudding A l'Arsenic - MAGOYOND", "PuddingRockCover.mp3", 157);
+
+var category = Object.create(PlaylistTimeSlot);
+category.initPlaylistTimeSlot();
+category.addPlaylist(playlist2, "00:00:00", "10:35:00");
+category.addPlaylist(playlist1, "10:35:00", "23:59:59");
 
 /*
  *
  */
 var Jingle = Object.create(Playlist);
-Jingle.initPlaylist("Jingle", "00:00:00", "23:59:59");
+Jingle.initPlaylist("Jingle");
 for (var i = 1; i < 18; i++) {
 	Jingle.addsong("Jingle", "Jingle/Jingle ("+i+").mp3");
 }
@@ -106,9 +163,10 @@ player.on('player_split', function () {
 player.on('add_queue', function() {
 		var jingle = Jingle.randsong();
 		queue.push([jingle[0], jingle[1]]);
-		var song = playlist1.onesong();
+		var date = new Date();
+		var song = category.selectRandomPlaylistInTime(date.toLocaleTimeString()).onesong();
 		queue.push([song[0], song[1]]);
-		console.log("add a song to the queue");
+		console.log("add a song to the queue, " + date.toLocaleTimeString());
 });
 
 
@@ -123,7 +181,9 @@ player.on('play_queue', function() {
 		file.close();
 		//console.log('A');
 	}
-	file = new fs.createReadStream("musique/"+queue[0][1]);
+	var song = queue[0];
+	player.emit('player_split'); //supprime le son de la queue
+	file = new fs.createReadStream("musique/"+song[1]);
 	//console.log('B');
 	decoder = new lame.Decoder();
 	decoder.on('format', function(format) {
@@ -140,12 +200,11 @@ player.on('play_queue', function() {
 			mode: lame.STEREO  // STEREO (default), JOINTSTEREO, DUALCHANNEL or MONO
 		});
 		//console.log('F');
-		metadata.add('song', queue[0][0]);
+		metadata.add('song', song[0]);
 		shout.setMetadata(metadata);
 		var s = decoder.pipe(encoder).pipe(new ShoutStream(shout));
 		//console.log('G');
 		s.on('finish', function() {
-			player.emit('player_split');
 			player.emit('play_queue');
 		});
 	});
@@ -153,5 +212,6 @@ player.on('play_queue', function() {
   	file.pipe(decoder);
 });
 
+player.emit('add_queue');
 player.emit('play_queue');
 
