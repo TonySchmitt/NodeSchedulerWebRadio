@@ -8,6 +8,11 @@ var FileReadStream = require('nodeshout').FileReadStream,
 var fs = require('fs');
 var lame = require('lame');
 var EventEmitter = require('events').EventEmitter;
+var compareDate = require('./modules/compareDate');
+var playl = require('./modules/playlist');
+var Playlist = playl.Playlist;
+var PlaylistEvent = playl.PlaylistEvent;
+var PlaylistTimeSlot = playl.PlaylistTimeSlot;
 
 /*
  * Initialisation de Shout pour se connecter à Icecast
@@ -30,28 +35,6 @@ shout.setAudioInfo('channels', '2');
 shout.open();
 var metadata = nodeshout.createMetadata();
 
-/*
- * Test heure
- */
-
-
-
-function compareStringHours(hours1, hours2) {
-	var h1 = parseInt(hours1.substr(0,2));
-	var h2 = parseInt(hours2.substr(0,2));
-	var m1 = parseInt(hours1.substr(3,2));
-	var m2 = parseInt(hours2.substr(3,2));
-	var s1 = parseInt(hours1.substr(6,2));
-	var s2 = parseInt(hours2.substr(6,2));
-
-	if(h1 > h2 || (h1 == h2 && m1 > m2) || (h1 == h2 && m1 == m2 && s1 > s2)) {
-		return 1;
-	} else if (h1 == h2 && m1 == m2 && s1 == s2) {
-		return 0;
-	} else {
-		return -1;
-	}
-}
 
 /*
  * Initialisation d'une queue de lecture
@@ -66,88 +49,6 @@ queue.push(["Bande Annonce Matte Box", "BA_Matte_Box.mp3", date, 32]);
 //queue.push(["9th Art #15", "9th_Art_15 - 2015-12-20.mp3"]);
 
 
-/*
- * Playlist
- * Gestion des playlists en fonctions de tranche horaires
- */
-
-var Playlist = {
-	
-	initPlaylist: function (name) {
-		this.name = name;
-		this.playlist = new Array();
-	},
-
-	addsong: function (name, url, duration) {
-		this.playlist.push([name, url, duration]);
-	},
-
-	onesong: function() {
-		return this.playlist[0];
-	},
-
-	randsong: function() {
-		var i = Math.floor(Math.random() * this.playlist.length);
-		return this.playlist[i];
-	}
-
-};
-
-var PlaylistTimeSlot = {
-
-	initPlaylistTimeSlot: function() {
-		this.listPlaylist = new Array();
-	},
-
-	addPlaylist: function(playlist, beginTime, endTime) {
-		this.listPlaylist.push([playlist, beginTime, endTime]); //format : HH:MM:SS
-	},
-
-	selectRandomPlaylistInTime: function(time) {
-		var playlistNow = new Array();
-		this.listPlaylist.forEach(function (element) {
-			var begin = compareStringHours(time, element[1]);
-			var end = compareStringHours(time, element[2]);
-			if((begin == 1 || begin == 0) && end == -1) {
-				playlistNow.push(element);
-			}
-		});
-		if(playlistNow.length == 0) {
-			return false;
-		}
-		var i = Math.floor(Math.random() * playlistNow.length);
-		return playlistNow[i][0];
-	}
-}
-
-var PlaylistEvent = {
-	initPlaylistEvent: function() {
-		this.listPlaylist = new Array();
-	},
-
-	addPlaylist: function(playlist, day, hour) {
-		this.listPlaylist.push([playlist, day, hour]); // format : YYYY-MM-DD HH:MM:SS
-	},
-
-	selectPlaylistEvent: function(date1, date2) {
-		var playlistNow = new Array();
-			console.log(date1);
-			console.log(date2);
-		this.listPlaylist.forEach(function (element) {
-			var begin = compareStringHours(date1, element[2]);
-			var end = compareStringHours(date2, element[2]);
-			if((begin == -1 || begin == 0) && (end == 1 || end == 0)) {
-				playlistNow.push(element);
-			}
-		});
-		if(playlistNow.length == 0) {
-			return false;
-		}
-		var i = 0; //Math.floor(Math.random() * playlistNow.length);
-		return playlistNow[i][0];
-	}
-}
-
 var playlist1 = Object.create(Playlist);
 playlist1.initPlaylist("Playlist Test");
 playlist1.addsong("A Good Man - Doctor Who", "02 A Good Man.mp3", 453);
@@ -159,17 +60,18 @@ playlist2.addsong("Pudding A l'Arsenic - MAGOYOND", "PuddingRockCover.mp3", 157)
 
 var playlist3 = Object.create(Playlist);
 playlist3.initPlaylist("Playlist Test");
-playlist3.addsong("Onde Critique", "OC_jingle.mp3", 58);
+//playlist3.addsong("Onde Critique", "OC_jingle.mp3", 58);
+playlist3.addsong("9th Art", "9th_Art_15 - 2015-12-20.mp3", 3119)
 
 
 var category = Object.create(PlaylistTimeSlot);
 category.initPlaylistTimeSlot();
-category.addPlaylist(playlist2, "00:00:00", "01:00:00");
-category.addPlaylist(playlist1, "01:00:00", "23:59:59");
+category.addPlaylist(playlist2, "00:00:00", "14:40:00");
+category.addPlaylist(playlist1, "14:40:00", "23:59:59");
 
 var playlistEvent = Object.create(PlaylistEvent);
 playlistEvent.initPlaylistEvent();
-playlistEvent.addPlaylist(playlist3, "2016-11-15", "12:50:00");
+playlistEvent.addPlaylist(playlist3, "2016-11-15", "13:30:00");
 
 
 /*
@@ -277,4 +179,3 @@ player.on('play_queue', function() {
 
 player.emit('add_queue');
 player.emit('play_queue');
-
