@@ -48,39 +48,44 @@ queue.push(["Bande Annonce Matte Box", "BA_Matte_Box.mp3", date, 32]);
 //queue.push(["A Good Man - Doctor Who", "02 A Good Man.mp3"]);
 //queue.push(["9th Art #15", "9th_Art_15 - 2015-12-20.mp3"]);
 
+var listPlaylist = new Array();
 
 var playlist1 = Object.create(Playlist);
-playlist1.initPlaylist("Playlist Test");
-playlist1.addsong("A Good Man - Doctor Who", "02 A Good Man.mp3", 453);
-playlist1.addsong("Concussed - Doctor Who", "04 Concussed.mp3", 207);
+playlist1.constructor("Playlist Doctor Who");
+playlist1.addSong("A Good Man - Doctor Who", "02 A Good Man.mp3", 453);
+playlist1.addSong("Concussed - Doctor Who", "04 Concussed.mp3", 207);
 
 var playlist2 = Object.create(Playlist);
-playlist2.initPlaylist("Playlist Test");
-playlist2.addsong("Pudding A l'Arsenic - MAGOYOND", "PuddingRockCover.mp3", 157);
+playlist2.constructor("Playlist MAGOYOND");
+playlist2.addSong("Pudding A l'Arsenic - MAGOYOND", "PuddingRockCover.mp3", 157);
 
 var playlist3 = Object.create(Playlist);
-playlist3.initPlaylist("Playlist Test");
+playlist3.constructor("Playlist Emission");
 //playlist3.addsong("Onde Critique", "OC_jingle.mp3", 58);
-playlist3.addsong("9th Art", "9th_Art_15 - 2015-12-20.mp3", 3119)
+playlist3.addSong("9th Art", "9th_Art_15 - 2015-12-20.mp3", 3119)
+
+listPlaylist.push(playlist1);
+listPlaylist.push(playlist2);
+listPlaylist.push(playlist3);
 
 
 var category = Object.create(PlaylistTimeSlot);
 category.initPlaylistTimeSlot();
-category.addPlaylist(playlist2, "00:00:00", "14:40:00");
-category.addPlaylist(playlist1, "14:40:00", "23:59:59");
+category.addPlaylist(playlist2, "23:00:00", "12:10:00");
+category.addPlaylist(playlist1, "09:10:00", "22:59:59");
 
 var playlistEvent = Object.create(PlaylistEvent);
 playlistEvent.initPlaylistEvent();
-playlistEvent.addPlaylist(playlist3, "2016-11-15", "13:30:00");
+playlistEvent.addPlaylist(playlist3, "16/11/2016", "17:55:00");
 
 
 /*
  *
  */
 var Jingle = Object.create(Playlist);
-Jingle.initPlaylist("Jingle");
+Jingle.constructor("Jingle");
 for (var i = 1; i < 18; i++) {
-	Jingle.addsong("Jingle", "Jingle/Jingle ("+i+").mp3", 6);
+	Jingle.addSong("Jingle", "Jingle/Jingle ("+i+").mp3", 6);
 }
 
 
@@ -97,14 +102,19 @@ var decoder = new lame.Decoder();
 
 player.on('player_split', function () {
 	var date = new Date();
+	var s = date.getTime();
+	//s += 4*3600*1000 + 50*60*1000;
+	date.setTime(s);
 	console.log("Queue : ");
 	for(var i=0; i<queue.length; i++) {
-		queue[i][2] = date;
+		queue[i][2] =  new Date(date.getTime());
 		console.log("- " + queue[i][0] + "-" + queue[i][1] + ", " + queue[i][2].toLocaleTimeString());
 		var time = date.getTime();
 		time += queue[i][3]*1000;
 		date.setTime(time);
 	}
+	currentsong[1] = queue[0][2].toLocaleTimeString();
+	currentsong[2] = queue[1][2].toLocaleTimeString();
 	queue.splice(0,1);
 	if(queue.length <= 3) {
 		player.emit('add_queue');
@@ -112,7 +122,7 @@ player.on('player_split', function () {
 });
 
 player.on('add_queue', function() {
-		var jingle = Jingle.randsong();
+		var jingle = Jingle.randSong();
 		var date = new Date();
 		date.setTime(queue[queue.length-1][2].getTime());
 
@@ -125,12 +135,12 @@ player.on('add_queue', function() {
 		var date2 = new Date();
 		date2.setTime(queue[queue.length-2][2].getTime());
 
-		var pe = playlistEvent.selectPlaylistEvent(date1.toLocaleTimeString(), date2.toLocaleTimeString());
+		var pe = playlistEvent.selectPlaylistEvent(date1, date2);
 
 		if(pe) {
 			var song = pe.onesong()
 		} else {
-			var song = category.selectRandomPlaylistInTime(date.toLocaleTimeString()).randsong();
+			var song = category.selectRandomPlaylistInTime(date.toLocaleTimeString()).randSong();
 		}
 		queue.push([song[0], song[1], date.toLocaleTimeString, song[2]]);
 		console.log("add a song to the queue, " + date.toLocaleTimeString());
@@ -140,7 +150,7 @@ player.on('add_queue', function() {
 /*
  * Player
  */
-
+var currentsong = new Array();
 player.on('play_queue', function() {
 	if(file != null) {
 		decoder.unpipe();
@@ -149,6 +159,8 @@ player.on('play_queue', function() {
 		//console.log('A');
 	}
 	var song = queue[0];
+	currentsong[0]=song[0];
+	console.log("Current Song : " + currentsong);
 	player.emit('player_split'); //supprime le son de la queue
 	file = new fs.createReadStream("musique/"+song[1]);
 	//console.log('B');
@@ -179,3 +191,35 @@ player.on('play_queue', function() {
 
 player.emit('add_queue');
 player.emit('play_queue');
+
+
+var http = require('http');
+
+// Chargement du fichier index.html affiché au client
+var server = http.createServer(function(req, res) {
+    console.log('Utilisateur connecté');
+});
+// Chargement de socket.io
+var io = require('socket.io').listen(server);
+
+// Quand un client se connecte, on le note dans la console
+io.sockets.on('connection', function (socket) {
+    console.log('Un client est connecté !');
+    // Quand le serveur reçoit un signal de type "message" du client    
+    socket.on('message', function (message) {
+        console.log('Un client me parle ! Il me dit : ' + message);
+    });
+    socket.on('updateClient', function(){
+        socket.emit('updateServer', currentsong[0] + " - " + currentsong[1] + " - " + currentsong[2]);
+        socket.emit('updateQueueServer', queue);
+        socket.emit('updatePlaylistServer', listPlaylist[0].getName());
+    });
+
+    socket.on('removeOneQueue', function(i) {
+    	console.log('remove the ' + i + 'eme element');
+		queue.splice(i,1);
+    });
+});
+
+
+server.listen(8080);
