@@ -71,8 +71,8 @@ listPlaylist.push(playlist3);
 
 var category = Object.create(PlaylistTimeSlot);
 category.initPlaylistTimeSlot();
-category.addPlaylist(playlist2, "23:00:00", "12:10:00");
-category.addPlaylist(playlist1, "09:10:00", "22:59:59");
+category.addPlaylist(playlist1, "14:10:00", "09:10:00");
+category.addPlaylist(playlist2, "09:10:00", "14:39:59");
 
 var playlistEvent = Object.create(PlaylistEvent);
 playlistEvent.initPlaylistEvent();
@@ -113,8 +113,8 @@ player.on('player_split', function () {
 		time += queue[i][3]*1000;
 		date.setTime(time);
 	}
-	currentsong[1] = queue[0][2].toLocaleTimeString();
-	currentsong[2] = queue[1][2].toLocaleTimeString();
+	currentsong[1] = queue[0][2].toLocaleString("en-EN");
+	currentsong[2] = queue[1][2].toLocaleString("en-EN");
 	queue.splice(0,1);
 	if(queue.length <= 3) {
 		player.emit('add_queue');
@@ -131,7 +131,7 @@ player.on('add_queue', function() {
 		date1.setTime(ms);
 
 		queue.push([jingle[0], jingle[1], date, jingle[2]]);
-		
+
 		var date2 = new Date();
 		date2.setTime(queue[queue.length-2][2].getTime());
 
@@ -205,12 +205,12 @@ var io = require('socket.io').listen(server);
 // Quand un client se connecte, on le note dans la console
 io.sockets.on('connection', function (socket) {
     console.log('Un client est connecté !');
-    // Quand le serveur reçoit un signal de type "message" du client    
+    // Quand le serveur reçoit un signal de type "message" du client
     socket.on('message', function (message) {
         console.log('Un client me parle ! Il me dit : ' + message);
     });
     socket.on('updateClient', function(){
-        socket.emit('updateServer', currentsong[0] + " - " + currentsong[1] + " - " + currentsong[2]);
+        socket.emit('updateServer', currentsong[0],currentsong[1],currentsong[2]);
         socket.emit('updateQueueServer', queue);
         socket.emit('updatePlaylistServer', listPlaylist[0].getName());
     });

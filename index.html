@@ -13,7 +13,14 @@
 		<div class="row" style="background: #26e1ff; margin: 0px;">
 			<p>Titre : <span id="current"></span></p>
 		</div>
-	<p><input type="button" value="Raffraichir" id="poke" /></p>
+		<br>
+		<div class="progress">
+		  <div class="progress-bar progress-bar-info progress-bar-striped" role="progressbar"
+		  aria-valuenow="50" aria-valuemin="0" aria-valuemax="100" style="width:50%; transition: width .2s ease;" id="progressBar">
+
+		  </div>
+		</div>
+	<p><input class="btn btn-success" type="button" value="Raffraichir" id="poke" /></p>
 	</div>
 </div>
 <br><br>
@@ -34,22 +41,45 @@
 	</div>
 </div>
 </body>
+<script src="jquery.js"></script>
 <script src="http://localhost:8080/socket.io/socket.io.js">
 </script>
-<script src="jquery.js"></script>
 <script>
-    var socket = io.connect('http://localhost:8080');
+
+	var timeBegin = new Date('2017-01-04 13:01:12');
+	var timeEnd = new Date('2017-01-04 13:03:22');
+
+	function progressTimer() {
+		var timelength = timeEnd - timeBegin;
+		var now = new Date();
+		var progressTime = now - timeBegin;
+		var percent = 100 * progressTime / timelength;
+		$('#progressBar').width(percent + "%");
+		if(percent > 99) {
+			socket.emit('updateClient');
+		}
+	}
+
+	function setTimeProgress(timeB, timeE) {
+		timeBegin = new Date(timeB);
+		timeEnd = new Date(timeE);
+	}
+
+	setInterval(function() {progressTimer();},100);
+
+	var socket = io.connect('http://localhost:8080');
     $("#current").html("Pas de lecture en cours");
 
     $('#poke').click(function () {
         socket.emit('message', 'Salut serveur, ça va ?');
     })
-	
-	setInterval(function(){ socket.emit('updateClient'); }, 3000);
-    
 
-    socket.on('updateServer', function(song){
-    	$("#current").html(song);
+	setInterval(function(){ socket.emit('updateClient'); }, 3000);
+
+
+    socket.on('updateServer', function(song, timeB, timeE){
+    	$("#current").html(song + " - " + timeB + " - " + timeE);
+			setTimeProgress(timeB, timeE);
     });
 
     socket.on('updateQueueServer', function(queue){
